@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>あいのりさん - 乗り合わせマッチングツール</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif; background: #f5f7fa; color: #333; line-height: 1.6; font-size: 16px; }
+.container { max-width: 760px; margin: 0 auto; padding: 16px; }
+header { background: linear-gradient(135deg, #4a90d9, #357abd); color: #fff; padding: 20px 16px; text-align: center; }
+header h1 { font-size: 1.4em; }
+header p { font-size: 0.85em; opacity: 0.9; margin-top: 4px; }
+.card { background: #fff; border-radius: 12px; padding: 20px; margin: 16px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.card h2 { font-size: 1.1em; margin-bottom: 12px; color: #4a90d9; }
+label { display: block; font-size: 0.85em; font-weight: 600; margin-bottom: 4px; color: #555; }
+input[type="text"], input[type="month"], select { width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 1em; }
+input::placeholder { font-size: 0.8em; color: #bbb; }
+input:focus, select:focus { outline: none; border-color: #4a90d9; }
+.form-row { margin-bottom: 14px; }
+.btn { display: inline-block; padding: 12px 24px; border: none; border-radius: 8px; font-size: 1em; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-primary { background: #4a90d9; color: #fff; width: 100%; }
+.btn-primary:hover { background: #357abd; }
+.btn-success { background: #5cb85c; color: #fff; width: 100%; }
+.btn-success:hover { background: #4cae4c; }
+.btn-sm { padding: 6px 14px; font-size: 0.85em; }
+.btn-outline { background: transparent; border: 1.5px solid #4a90d9; color: #4a90d9; }
+.btn-outline:hover { background: #4a90d9; color: #fff; }
+
+/* Calendar */
+.cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; margin-top: 8px; }
+.cal-header { text-align: center; font-size: 0.75em; font-weight: 700; color: #888; padding: 4px 0; }
+.cal-header:first-child { color: #e74c3c; }
+.cal-header:last-child { color: #4a90d9; }
+.cal-cell { text-align: center; padding: 6px 2px; border-radius: 8px; font-size: 0.85em; min-height: 44px; position: relative; cursor: default; }
+.cal-cell.empty { cursor: default; }
+.cal-cell.selectable { cursor: pointer; }
+.cal-cell.selectable:hover { background: #f0f4ff; }
+.cal-cell.selected { background: #4a90d9; color: #fff; font-weight: 700; }
+.cal-cell.event-day { background: #e8f0fe; font-weight: 700; cursor: pointer; }
+.cal-cell.event-day:hover { background: #d0e2fc; }
+.cal-cell.event-day.active-day { background: #4a90d9; color: #fff; }
+.cal-status { font-size: 0.7em; display: block; margin-top: 1px; }
+.cal-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.cal-nav button { background: none; border: none; font-size: 1.2em; cursor: pointer; padding: 4px 8px; color: #4a90d9; }
+.cal-nav span { font-weight: 700; font-size: 1em; }
+
+/* Response table (Chouseisan style) */
+.resp-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.resp-table th, .resp-table td { border: 1px solid #e0e0e0; text-align: center; padding: 6px 4px; font-size: 0.82em; }
+.resp-table th { background: #f8f9fa; font-weight: 600; color: #555; }
+.resp-table td.clickable { cursor: pointer; user-select: none; font-size: 1.1em; min-width: 44px; }
+.resp-table td.clickable:hover { background: #f0f4ff; }
+.resp-cell-driver { background: #e8f0fe; color: #2a6cb8; }
+.resp-cell-maybe { background: #fef9e7; color: #c87f0a; }
+.resp-cell-rider { background: #fef5e7; color: #d35400; }
+.resp-cell-none { background: #f5f5f5; color: #999; }
+
+/* Badges */
+.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.78em; font-weight: 600; }
+.badge-driver { background: #e8f0fe; color: #2a6cb8; }
+.badge-maybe { background: #fef9e7; color: #c87f0a; }
+.badge-rider { background: #fef5e7; color: #d35400; }
+.badge-none { background: #f0f0f0; color: #999; }
+
+/* Share */
+.share-box { display: flex; gap: 8px; margin-top: 8px; }
+.share-box input { flex: 1; padding: 10px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 0.85em; background: #f8f9fa; }
+.copied-msg { color: #5cb85c; font-size: 0.85em; font-weight: 600; display: none; margin-top: 4px; }
+
+/* Match */
+.match-group { background: #f8f9fa; border-radius: 8px; padding: 12px; margin: 8px 0; }
+.match-driver { font-weight: 700; color: #2a6cb8; font-size: 0.95em; }
+.match-riders { margin-top: 6px; padding-left: 24px; font-size: 0.9em; }
+.match-riders li { margin: 2px 0; color: #d35400; }
+.match-warning { background: #fdf2f2; border: 1px solid #f5c6cb; border-radius: 8px; padding: 12px; color: #c0392b; font-size: 0.9em; margin: 8px 0; }
+.match-ok { background: #f0faf0; border: 1px solid #c3e6cb; border-radius: 8px; padding: 12px; color: #2d6a2d; font-size: 0.9em; margin: 8px 0; }
+.match-maybe-warn { background: #fef9e7; border: 1px solid #f0d78c; border-radius: 8px; padding: 12px; color: #856404; font-size: 0.9em; margin: 8px 0; }
+
+/* Member table */
+.member-table { width: 100%; border-collapse: collapse; font-size: 0.82em; margin-top: 8px; }
+.member-table th, .member-table td { padding: 8px 6px; text-align: center; border-bottom: 1px solid #eee; }
+.member-table th { background: #f8f9fa; color: #666; font-weight: 600; }
+.member-table td:first-child, .member-table th:first-child { text-align: left; font-weight: 600; }
+
+/* Summary table */
+.summary-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+.summary-table th, .summary-table td { padding: 8px 10px; border: 1px solid #e0e0e0; text-align: center; }
+.summary-table th { background: #f8f9fa; font-weight: 600; }
+.summary-table td:first-child { text-align: left; font-weight: 600; }
+
+/* Tabs */
+.tabs { display: flex; gap: 0; margin-bottom: 12px; }
+.tab { flex: 1; padding: 10px; text-align: center; font-weight: 600; font-size: 0.9em; cursor: pointer; border-bottom: 3px solid transparent; color: #999; }
+.tab.active { color: #4a90d9; border-bottom-color: #4a90d9; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Detail edit */
+.detail-form { margin-top: 8px; }
+.detail-form .row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; padding: 8px; background: #f8f9fa; border-radius: 8px; flex-wrap: wrap; }
+.detail-form .row label { margin: 0; font-size: 0.82em; min-width: 50px; }
+.detail-form .row input[type="number"] { width: 50px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; text-align: center; }
+.detail-form .row input[type="text"] { flex: 1; min-width: 100px; padding: 6px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9em; }
+
+.delete-btn { background: none; border: none; cursor: pointer; color: #ccc; font-size: 1em; padding: 2px 6px; border-radius: 4px; }
+.delete-btn:hover { color: #e74c3c; background: #fef5e7; }
+
+.direction-label { font-size: 0.9em; font-weight: 700; margin-bottom: 6px; padding: 4px 10px; border-radius: 6px; display: inline-block; }
+.direction-going { background: #e8f0fe; color: #2a6cb8; }
+.direction-returning { background: #fef5e7; color: #d35400; }
+
+@media (max-width: 500px) {
+  body { font-size: 18px; }
+  header h1 { font-size: 1.5em; }
+  .card h2 { font-size: 1.2em; }
+  label { font-size: 0.95em; }
+  input[type="text"], select { font-size: 1.05em; padding: 12px 14px; }
+  .btn { font-size: 1.1em; padding: 14px 24px; }
+  .cal-cell { font-size: 1em; min-height: 48px; padding: 8px 2px; }
+  .cal-header { font-size: 0.85em; }
+  .cal-nav span { font-size: 1.1em; }
+  .cal-nav button { font-size: 1.4em; }
+  .resp-table th, .resp-table td { padding: 6px 4px; font-size: 0.9em; }
+  .resp-table td.clickable { font-size: 1.2em; min-width: 48px; }
+  .member-table { font-size: 0.85em; }
+  .summary-table { font-size: 0.95em; }
+  .tab { font-size: 1em; padding: 12px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>&#x1F697; あいのりさん</h1>
+  <p>習い事・スポーツ教室の乗り合わせマッチング</p>
+</header>
+<div class="container">
+
+<!-- ===== CREATE PAGE ===== -->
+<div id="page-create">
+  <div class="card">
+    <h2>&#x1F4CB; 新しいスケジュールを作成</h2>
+    <div class="form-row">
+      <label>スクール / 教室名</label>
+      <input type="text" id="c-name" placeholder="例: 〇〇サッカースクール">
+    </div>
+    <input type="hidden" id="c-month">
+    <div class="form-row">
+      <label>開催日を選択（クリックで選択 / 解除）</label>
+      <div id="create-cal"></div>
+    </div>
+    <button class="btn btn-primary" id="btn-create">スケジュールを作成する</button>
+    <div id="create-error" style="color:#e74c3c;font-size:0.9em;font-weight:600;margin-top:10px;display:none;padding:10px;background:#fdf2f2;border-radius:8px;text-align:center;"></div>
+  </div>
+</div>
+
+<!-- ===== EVENT PAGE ===== -->
+<div id="page-event" style="display:none;">
+
+  <!-- Event Info + Calendar -->
+  <div class="card">
+    <h2 id="ev-title"></h2>
+    <div style="font-size:0.9em; color:#666; margin-bottom:8px;" id="ev-info"></div>
+    <div id="event-cal"></div>
+    <div style="margin-top:12px;">
+      <label>共有URL</label>
+      <div class="share-box">
+        <input type="text" id="share-url" readonly>
+        <button class="btn btn-sm btn-outline" id="btn-copy">コピー</button>
+      </div>
+      <div class="copied-msg" id="copied-msg">コピーしました!</div>
+      <div style="font-size:0.78em;color:#e67e22;margin-top:6px;">⚠ 共有URLは作成から100日で自動削除されます</div>
+    </div>
+  </div>
+
+  <!-- Bulk Response Form -->
+  <div class="card">
+    <h2>&#x270D;&#xFE0F; まとめて回答</h2>
+    <div style="display:flex;gap:10px;align-items:flex-end;">
+      <div class="form-row" style="flex:1;">
+        <label>名前</label>
+        <input type="text" id="resp-name" placeholder="例: 田中">
+      </div>
+      <div class="form-row" style="flex:1;">
+        <label>出発地</label>
+        <input type="text" id="resp-pickup" placeholder="例: 〇〇駅前">
+      </div>
+      <div class="form-row" style="flex:0 0 60px;">
+        <label style="text-align:center;line-height:1.3;">座席数<br><span style="font-weight:400;font-size:0.75em;color:#999;">運転席除く</span></label>
+        <select id="resp-seats">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3" selected>3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
+      <div style="background:#e8f0fe;border-radius:8px;padding:10px 12px;text-align:center;"><div style="font-size:1.5em;">🚗</div><div style="font-size:0.85em;margin-top:2px;">車出します</div></div>
+      <div style="background:#fef9e7;border-radius:8px;padding:10px 12px;text-align:center;"><div style="font-size:1.5em;">😅</div><div style="font-size:0.85em;margin-top:2px;">他にいなければ<br>車出せます</div></div>
+      <div style="background:#fef5e7;border-radius:8px;padding:10px 12px;text-align:center;"><div style="font-size:1.5em;">🙇</div><div style="font-size:0.85em;margin-top:2px;">乗せてください</div></div>
+      <div style="background:#f0f0f0;border-radius:8px;padding:10px 12px;text-align:center;"><div style="font-size:1.5em;">💤</div><div style="font-size:0.85em;margin-top:2px;">不参加</div></div>
+    </div>
+    <div style="text-align:center;font-size:0.85em;color:#999;margin-bottom:8px;">※ セルをタップで切り替わります</div>
+    <div style="overflow-x:auto;">
+      <table class="resp-table" id="resp-table"></table>
+    </div>
+    <div style="margin-top: 12px;">
+      <button class="btn btn-success" id="resp-btn">まとめて登録</button>
+    </div>
+  </div>
+
+  <!-- Day Detail -->
+  <div class="card" id="day-detail-card" style="display:none;">
+    <h2 id="day-detail-title"></h2>
+    <div class="tabs">
+      <div class="tab active" data-tab="list">参加者一覧</div>
+      <div class="tab" data-tab="match">マッチング</div>
+      <div class="tab" data-tab="edit">詳細編集</div>
+    </div>
+    <div class="tab-content active" id="dtab-list"></div>
+    <div class="tab-content" id="dtab-match"></div>
+    <div class="tab-content" id="dtab-edit"></div>
+  </div>
+
+  <!-- Matching Overview for all dates -->
+  <div class="card" id="match-overview-card" style="display:none;">
+    <h2>&#x1F4CB; マッチング詳細</h2>
+    <div id="match-overview"></div>
+  </div>
+
+</div>
+</div>
+
+<script>
+// ============ State ============
+let currentEvent = null;
+let members = [];
+let selectedDates = [];
+let activeDay = null;
+let editingMemberIndex = -1;
+let respData = {}; // temp response data for form
+
+// ============ Util ============
+function esc(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+function shortDate(ds) { const d = new Date(ds + 'T00:00:00'); return `${d.getMonth()+1}/${d.getDate()}`; }
+function dayOfWeek(ds) { return ['日','月','火','水','木','金','土'][new Date(ds+'T00:00:00').getDay()]; }
+const SYM = { driver: '🚗', maybe: '😅', rider: '🙇', none: '💤' };
+const LABEL = { driver: '車出します', maybe: '他にいなければ車出せます', rider: '乗せてください', none: '不参加' };
+const CYCLE = ['none','driver','maybe','rider'];
+
+// ============ Init ============
+window.addEventListener('DOMContentLoaded', () => {
+  const hash = window.location.hash.slice(1);
+  if (hash) {
+    try {
+      currentEvent = JSON.parse(decodeURIComponent(atob(hash)));
+      if (currentEvent.createdAt) {
+        const elapsed = (Date.now() - new Date(currentEvent.createdAt).getTime()) / (1000*60*60*24);
+        if (elapsed > 100) {
+          localStorage.removeItem('ainori_' + currentEvent.id);
+          window.location.hash = '';
+          currentEvent = null;
+          document.getElementById('page-create').innerHTML = '<div class="card"><p style="text-align:center;padding:24px;color:#e74c3c;font-weight:600;">このスケジュールは作成から100日が経過したため削除されました。</p></div>';
+          return;
+        }
+      }
+      loadMembers();
+      showEventPage();
+    } catch(e) { console.error('Invalid URL'); }
+  }
+  const now = new Date();
+  document.getElementById('c-month').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  renderCreateCal();
+  document.getElementById('btn-create').addEventListener('click', createEvent);
+  document.getElementById('btn-copy').addEventListener('click', copyURL);
+  document.getElementById('resp-btn').addEventListener('click', submitResponse);
+  document.querySelectorAll('.tabs .tab[data-tab]').forEach(tab => {
+    tab.addEventListener('click', () => switchDayTab(tab.dataset.tab));
+  });
+});
+
+// ============ Calendar Rendering ============
+function renderCalGrid(container, yearMonth, opts) {
+  const [y, m] = yearMonth.split('-').map(Number);
+  const first = new Date(y, m-1, 1);
+  const last = new Date(y, m, 0);
+  const startDow = first.getDay();
+  const daysInMonth = last.getDate();
+
+  let html = '<div class="cal-nav">';
+  if (opts.nav) {
+    html += `<button data-action="${opts.nav}" data-date="-1">&#x25C0;</button>`;
+    html += `<span>${y}年${m}月</span>`;
+    html += `<button data-action="${opts.nav}" data-date="1">&#x25B6;</button>`;
+  } else {
+    html += `<span>${y}年${m}月</span>`;
+  }
+  html += '</div><div class="cal-grid">';
+  ['日','月','火','水','木','金','土'].forEach(d => html += `<div class="cal-header">${d}</div>`);
+
+  for (let i = 0; i < startDow; i++) html += '<div class="cal-cell empty"></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    let cls = 'cal-cell';
+    let extra = '';
+    if (opts.selectable) {
+      cls += ' selectable';
+      if (selectedDates.includes(ds)) cls += ' selected';
+      extra = ` data-action="${opts.onClick}" data-date="${ds}"`;
+    }
+    if (opts.eventDates && opts.eventDates.includes(ds)) {
+      cls += ' event-day';
+      if (ds === activeDay) cls += ' active-day';
+      extra = ` data-action="${opts.onDayClick}" data-date="${ds}"`;
+      const status = getDayStatus(ds);
+      const statusIcon = status === 'ok' ? '✅' : status === 'warn' ? '🔺' : '';
+      html += `<div class="${cls}"${extra}>${d}<span class="cal-status">${statusIcon}</span></div>`;
+      continue;
+    }
+    html += `<div class="${cls}"${extra}>${d}</div>`;
+  }
+  html += '</div>';
+  container.innerHTML = html;
+  container.onclick = function(e) {
+    const cell = e.target.closest('[data-action]');
+    if (!cell) return;
+    const fn = window[cell.dataset.action];
+    const val = cell.dataset.date;
+    if (fn) fn(isNaN(val) ? val : Number(val));
+  };
+}
+
+// ============ Create Page Calendar ============
+function changeCreateMonth(delta) {
+  const el = document.getElementById('c-month');
+  const [y, m] = el.value.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  el.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  renderCreateCal();
+}
+function renderCreateCal() {
+  const ym = document.getElementById('c-month').value;
+  if (!ym) return;
+  renderCalGrid(document.getElementById('create-cal'), ym, {
+    selectable: true, onClick: 'toggleCreateDate', nav: 'changeCreateMonth'
+  });
+}
+function toggleCreateDate(ds) {
+  const i = selectedDates.indexOf(ds);
+  if (i >= 0) selectedDates.splice(i, 1); else selectedDates.push(ds);
+  selectedDates.sort();
+  renderCreateCal();
+}
+
+// ============ Create Event ============
+function showCreateError(msg) {
+  const el = document.getElementById('create-error');
+  el.textContent = '⚠️ ' + msg;
+  el.style.display = 'block';
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+function createEvent() {
+  const name = document.getElementById('c-name').value.trim();
+  const month = document.getElementById('c-month').value;
+  if (!name) { showCreateError('スクール名を入力してください'); return; }
+  if (!month) { showCreateError('月を選択してください'); return; }
+  if (selectedDates.length === 0) { showCreateError('開催日を1日以上選択してください'); return; }
+
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  const createdAt = new Date().toISOString();
+  currentEvent = { id, name, month, dates: [...selectedDates], createdAt };
+  members = [];
+  saveMembers();
+  window.location.hash = btoa(encodeURIComponent(JSON.stringify(currentEvent)));
+  showEventPage();
+}
+
+// ============ Event Page ============
+function showEventPage() {
+  document.getElementById('page-create').style.display = 'none';
+  document.getElementById('page-event').style.display = 'block';
+  document.title = `${currentEvent.name} - あいのりさん`;
+  document.getElementById('ev-title').textContent = '\u{1F4CD} ' + currentEvent.name;
+  document.getElementById('ev-info').textContent = `${currentEvent.month.replace('-','年')}月`;
+  document.getElementById('share-url').value = window.location.href;
+  renderEventCal();
+  renderRespTable();
+  renderMatchOverview();
+
+  if (activeDay) showDayDetail(activeDay);
+}
+
+function renderEventCal() {
+  renderCalGrid(document.getElementById('event-cal'), currentEvent.month, {
+    eventDates: currentEvent.dates, onDayClick: 'showDayDetail'
+  });
+}
+
+// ============ Day Status ============
+function getDayStatus(ds) {
+  const dayMembers = members.filter(m => m.responses && m.responses[ds]);
+  if (dayMembers.length === 0) return 'empty';
+  let hasParticipant = false;
+  let allMatched = true;
+  for (const dir of ['going','returning']) {
+    const drivers = dayMembers.filter(m => m.responses[ds][dir] === 'driver');
+    const maybe = dayMembers.filter(m => m.responses[ds][dir] === 'maybe');
+    const riders = dayMembers.filter(m => m.responses[ds][dir] === 'rider');
+    if (drivers.length + maybe.length + riders.length > 0) hasParticipant = true;
+    const driverSeats = drivers.reduce((s,d) => s + (d.responses[ds][dir+'Seats'] || 0), 0);
+    if (riders.length > 0 && drivers.length === 0 && maybe.length === 0) { allMatched = false; }
+    else if (riders.length > driverSeats) { allMatched = false; }
+    else if (riders.length > 0 && drivers.length === 0) { allMatched = false; }
+  }
+  if (!hasParticipant) return 'empty';
+  return allMatched ? 'ok' : 'warn';
+}
+
+// ============ Response Table (Chouseisan-style) ============
+function renderRespTable() {
+  const dates = currentEvent.dates;
+  respData = {};
+  dates.forEach(ds => { respData[ds] = { going: 'none', returning: 'none' }; });
+
+  let html = '<thead><tr><th></th><th>行き</th><th>帰り</th></tr></thead><tbody>';
+  dates.forEach(ds => {
+    html += `<tr><td style="font-weight:600;">${shortDate(ds)}<br><span style="font-weight:400;font-size:0.85em;">(${dayOfWeek(ds)})</span></td>`;
+    html += `<td class="clickable resp-cell-none" id="rg-${ds}" data-resp-date="${ds}" data-resp-dir="going">${SYM.none}</td>`;
+    html += `<td class="clickable resp-cell-none" id="rr-${ds}" data-resp-date="${ds}" data-resp-dir="returning">${SYM.none}</td>`;
+    html += '</tr>';
+  });
+  html += '</tbody>';
+
+  const tbl = document.getElementById('resp-table');
+  tbl.innerHTML = html;
+  tbl.onclick = function(e) {
+    const cell = e.target.closest('[data-resp-date]');
+    if (cell) cycleResp(cell.dataset.respDate, cell.dataset.respDir);
+  };
+}
+
+function cycleResp(ds, dir) {
+  const cur = respData[ds][dir];
+  const next = CYCLE[(CYCLE.indexOf(cur) + 1) % CYCLE.length];
+  respData[ds][dir] = next;
+  const prefix = dir === 'going' ? 'rg' : 'rr';
+  const cell = document.getElementById(`${prefix}-${ds}`);
+  cell.textContent = SYM[next];
+  cell.className = 'clickable resp-cell-' + next;
+}
+
+function submitResponse() {
+  const name = document.getElementById('resp-name').value.trim();
+  const pickup = document.getElementById('resp-pickup').value.trim();
+  const seats = Number(document.getElementById('resp-seats').value);
+  if (!name) { showCreateError('名前を入力してください'); return; }
+
+  let existing = members.findIndex(m => m.name === name);
+  let member;
+  if (editingMemberIndex >= 0) {
+    member = members[editingMemberIndex];
+    member.name = name;
+    member.pickup = pickup;
+    member.seats = seats;
+    editingMemberIndex = -1;
+    document.getElementById('resp-btn').textContent = 'まとめて登録';
+  } else if (existing >= 0) {
+    member = members[existing];
+    member.pickup = pickup;
+    member.seats = seats;
+  } else {
+    member = { name, pickup, seats, responses: {} };
+    members.push(member);
+  }
+
+  currentEvent.dates.forEach(ds => {
+    const g = respData[ds].going;
+    const r = respData[ds].returning;
+    if (g !== 'none' || r !== 'none') {
+      if (!member.responses[ds]) member.responses[ds] = { going:'none', goingSeats:0, goingPickup:'', returning:'none', returningSeats:0, returningPickup:'', memo:'' };
+      member.responses[ds].going = g;
+      member.responses[ds].goingSeats = (g === 'driver') ? seats : 0;
+      member.responses[ds].returning = r;
+      member.responses[ds].returningSeats = (r === 'driver') ? seats : 0;
+    } else {
+      if (!member.responses[ds]) member.responses[ds] = { going:'none', goingSeats:0, goingPickup:'', returning:'none', returningSeats:0, returningPickup:'', memo:'' };
+      member.responses[ds].going = 'none';
+      member.responses[ds].returning = 'none';
+    }
+  });
+
+  saveMembers();
+  renderRespTable();
+  document.getElementById('resp-name').value = '';
+  renderEventCal();
+  renderMatchOverview();
+
+  if (activeDay) showDayDetail(activeDay);
+}
+
+// ============ Day Detail ============
+function showDayDetail(ds) {
+  activeDay = ds;
+  renderEventCal();
+  const card = document.getElementById('day-detail-card');
+  card.style.display = 'block';
+  document.getElementById('day-detail-title').textContent = `\u{1F4C5} ${shortDate(ds)}(${dayOfWeek(ds)}) の詳細`;
+  renderDayList(ds);
+  renderDayMatch(ds);
+  renderDayEdit(ds);
+  switchDayTab('list');
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function switchDayTab(tab) {
+  ['list','match','edit'].forEach(t => {
+    document.getElementById('dtab-'+t).classList.toggle('active', t===tab);
+  });
+  document.querySelectorAll('#day-detail-card .tab').forEach((el,i) => {
+    el.classList.toggle('active', i === ['list','match','edit'].indexOf(tab));
+  });
+}
+
+function renderDayList(ds) {
+  const dayM = members.filter(m => m.responses && m.responses[ds] && (m.responses[ds].going !== 'none' || m.responses[ds].returning !== 'none'));
+  if (dayM.length === 0) {
+    document.getElementById('dtab-list').innerHTML = '<p style="text-align:center;color:#999;padding:16px;">この日の参加者はまだいません</p>';
+    return;
+  }
+  let html = '<table class="member-table"><thead><tr><th>名前</th><th>出発地</th><th>行き</th><th>帰り</th><th></th></tr></thead><tbody>';
+  dayM.forEach(m => {
+    const r = m.responses[ds];
+    const mi = members.indexOf(m);
+    html += `<tr>
+      <td>${esc(m.name)}</td>
+      <td style="font-size:0.78em;color:#666;">${esc(m.pickup||'')}</td>
+      <td>${statusBadge(r.going, r.goingSeats)}</td>
+      <td>${statusBadge(r.returning, r.returningSeats)}</td>
+      <td><button class="delete-btn" data-edit-member="${mi}" title="編集">&#x270F;&#xFE0F;</button><button class="delete-btn" data-delete-member="${mi}" title="削除">&#x1F5D1;</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  const listEl = document.getElementById('dtab-list');
+  listEl.innerHTML = html;
+  listEl.onclick = function(e) {
+    const editBtn = e.target.closest('[data-edit-member]');
+    if (editBtn) { editMemberResp(Number(editBtn.dataset.editMember)); return; }
+    const delBtn = e.target.closest('[data-delete-member]');
+    if (delBtn) { deleteMember(Number(delBtn.dataset.deleteMember)); }
+  };
+}
+
+function statusBadge(status, seats) {
+  if (status === 'driver') return `<span class="badge badge-driver">${SYM.driver} ${seats}席</span>`;
+  if (status === 'maybe') return `<span class="badge badge-maybe">${SYM.maybe}</span>`;
+  if (status === 'rider') return `<span class="badge badge-rider">${SYM.rider}</span>`;
+  return `<span class="badge badge-none">${SYM.none}</span>`;
+}
+
+function editMemberResp(mi) {
+  const m = members[mi];
+  document.getElementById('resp-name').value = m.name;
+  editingMemberIndex = mi;
+  document.getElementById('resp-btn').textContent = '更新する';
+  currentEvent.dates.forEach(ds => {
+    const r = m.responses && m.responses[ds] ? m.responses[ds] : { going:'none', returning:'none' };
+    respData[ds] = { going: r.going, returning: r.returning };
+    ['going','returning'].forEach(dir => {
+      const prefix = dir === 'going' ? 'rg' : 'rr';
+      const cell = document.getElementById(`${prefix}-${ds}`);
+      if (cell) {
+        cell.textContent = SYM[r[dir]];
+        cell.className = 'clickable resp-cell-' + r[dir];
+      }
+    });
+  });
+  document.getElementById('resp-name').scrollIntoView({ behavior: 'smooth' });
+}
+
+function deleteMember(mi) {
+  if (!confirm(`${members[mi].name} さんを削除しますか？`)) return;
+  members.splice(mi, 1);
+  saveMembers();
+  renderEventCal();
+  renderMatchOverview();
+
+  if (activeDay) showDayDetail(activeDay);
+}
+
+// ============ Day Detail - Edit (driver details) ============
+function renderDayEdit(ds) {
+  const dayM = members.filter(m => m.responses && m.responses[ds]);
+  const drivers = dayM.filter(m => {
+    const r = m.responses[ds];
+    return r.going === 'driver' || r.returning === 'driver';
+  });
+  if (drivers.length === 0) {
+    document.getElementById('dtab-edit').innerHTML = '<p style="text-align:center;color:#999;padding:16px;">この日のドライバーはいません</p>';
+    return;
+  }
+
+  let html = '<p style="font-size:0.85em;color:#666;margin-bottom:8px;">ドライバーの席数・出発場所を編集できます</p><div class="detail-form">';
+  drivers.forEach(m => {
+    const r = m.responses[ds];
+    const mi = members.indexOf(m);
+    if (r.going === 'driver') {
+      html += `<div class="row"><label><span class="direction-label direction-going">行き</span> ${esc(m.name)}</label>
+        <label>席数</label><input type="number" min="1" max="8" value="${r.goingSeats||2}" onchange="updateDetail(${mi},'${ds}','goingSeats',this.value)">
+        <input type="text" placeholder="出発場所" value="${esc(r.goingPickup||'')}" onchange="updateDetail(${mi},'${ds}','goingPickup',this.value)">
+        <input type="text" placeholder="メモ" value="${esc(r.memo||'')}" onchange="updateDetail(${mi},'${ds}','memo',this.value)">
+      </div>`;
+    }
+    if (r.returning === 'driver') {
+      html += `<div class="row"><label><span class="direction-label direction-returning">帰り</span> ${esc(m.name)}</label>
+        <label>席数</label><input type="number" min="1" max="8" value="${r.returningSeats||2}" onchange="updateDetail(${mi},'${ds}','returningSeats',this.value)">
+        <input type="text" placeholder="出発場所" value="${esc(r.returningPickup||'')}" onchange="updateDetail(${mi},'${ds}','returningPickup',this.value)">
+      </div>`;
+    }
+  });
+
+  // Rider pickup locations
+  const riderMembers = dayM.filter(m => {
+    const r = m.responses[ds];
+    return r.going === 'rider' || r.going === 'maybe' || r.returning === 'rider' || r.returning === 'maybe';
+  });
+  if (riderMembers.length > 0) {
+    html += '<p style="font-size:0.85em;color:#666;margin:12px 0 8px;">乗車希望者の場所</p>';
+    riderMembers.forEach(m => {
+      const r = m.responses[ds];
+      const mi = members.indexOf(m);
+      if (r.going === 'rider' || r.going === 'maybe') {
+        html += `<div class="row"><label><span class="direction-label direction-going">行き</span> ${esc(m.name)}</label>
+          <input type="text" placeholder="乗車希望場所" value="${esc(r.goingPickup||'')}" onchange="updateDetail(${mi},'${ds}','goingPickup',this.value)">
+        </div>`;
+      }
+      if (r.returning === 'rider' || r.returning === 'maybe') {
+        html += `<div class="row"><label><span class="direction-label direction-returning">帰り</span> ${esc(m.name)}</label>
+          <input type="text" placeholder="乗車希望場所" value="${esc(r.returningPickup||'')}" onchange="updateDetail(${mi},'${ds}','returningPickup',this.value)">
+        </div>`;
+      }
+    });
+  }
+  html += '</div>';
+  document.getElementById('dtab-edit').innerHTML = html;
+}
+
+function updateDetail(mi, ds, field, val) {
+  if (!members[mi].responses[ds]) return;
+  if (field === 'goingSeats' || field === 'returningSeats') val = parseInt(val) || 1;
+  members[mi].responses[ds][field] = val;
+  saveMembers();
+  renderEventCal();
+  renderDayList(ds);
+  renderDayMatch(ds);
+  renderMatchOverview();
+}
+
+// ============ Day Matching ============
+function renderDayMatch(ds) {
+  let html = '';
+  ['going','returning'].forEach(dir => {
+    const label = dir === 'going' ? '行き' : '帰り';
+    const cls = dir === 'going' ? 'direction-going' : 'direction-returning';
+    html += `<div style="margin-bottom:16px;"><span class="direction-label ${cls}">${dir==='going'?'&#x27A1;&#xFE0F;':'&#x2B05;&#xFE0F;'} ${label}の乗り合わせ</span>`;
+    html += renderMatchDir(ds, dir);
+    html += '</div>';
+  });
+  document.getElementById('dtab-match').innerHTML = html;
+}
+
+function renderMatchDir(ds, dir) {
+  const dayM = members.filter(m => m.responses && m.responses[ds]);
+  const drivers = dayM.filter(m => m.responses[ds][dir] === 'driver');
+  const must = dayM.filter(m => m.responses[ds][dir] === 'rider');
+  const maybe = dayM.filter(m => m.responses[ds][dir] === 'maybe');
+
+  if (drivers.length === 0 && must.length === 0 && maybe.length === 0)
+    return '<p style="color:#999;font-size:0.9em;padding:8px;">参加者なし</p>';
+
+  const sf = dir + 'Seats', pf = dir + 'Pickup';
+  let html = '', assigned = [];
+
+  drivers.forEach(d => {
+    const seats = d.responses[ds][sf] || 0;
+    const pickup = d.responses[ds][pf];
+    const memo = d.responses[ds].memo;
+    const avMust = must.filter(r => !assigned.includes(r));
+    const aM = avMust.slice(0, seats);
+    assigned.push(...aM);
+    const left = seats - aM.length;
+    const avMaybe = maybe.filter(r => !assigned.includes(r));
+    const aMb = avMaybe.slice(0, left);
+    assigned.push(...aMb);
+    const all = [...aM, ...aMb];
+    const rem = seats - all.length;
+
+    html += `<div class="match-group"><div class="match-driver">${SYM.driver} ${esc(d.name)} の車 (${seats}席)</div>`;
+    if (pickup) html += `<div style="padding-left:24px;font-size:0.85em;color:#555;">&#x1F4CD; 出発: ${esc(pickup)}</div>`;
+    if (memo) html += `<div style="padding-left:24px;font-size:0.83em;color:#888;">${esc(memo)}</div>`;
+    if (all.length > 0) {
+      html += '<ul class="match-riders">';
+      all.forEach(r => {
+        const rp = r.responses[ds][pf];
+        const isMb = r.responses[ds][dir] === 'maybe';
+        const det = [];
+        if (rp) det.push('&#x1F4CD; ' + esc(rp));
+        html += `<li>${isMb ? SYM.maybe : SYM.rider} ${esc(r.name)}${isMb ? ' <span style="color:#c87f0a;font-size:0.8em;">(可能なら)</span>' : ''}${det.length ? ' <span style="color:#888;font-size:0.85em;">('+det.join(' / ')+')</span>' : ''}</li>`;
+      });
+      html += '</ul>';
+    }
+    if (rem > 0) html += `<div style="padding-left:24px;font-size:0.85em;color:#999;">あと${rem}人乗れます</div>`;
+    html += '</div>';
+  });
+
+  const umMust = must.filter(r => !assigned.includes(r));
+  const umMaybe = maybe.filter(r => !assigned.includes(r));
+  if (umMust.length > 0) html += `<div class="match-warning">&#x26A0;&#xFE0F; ${umMust.length}人が未マッチ: ${umMust.map(r=>esc(r.name)).join(', ')}</div>`;
+  if (umMaybe.length > 0) html += `<div class="match-maybe-warn">${SYM.maybe} ${umMaybe.length}人が「可能なら」で未マッチ: ${umMaybe.map(r=>esc(r.name)).join(', ')}</div>`;
+  if (umMust.length === 0 && (must.length > 0 || maybe.length > 0) && drivers.length > 0)
+    html += `<div class="match-ok">&#x2705; 乗車必須の全員マッチ！ (${drivers.length}台, ${assigned.length}人乗車)</div>`;
+  if ((must.length > 0 || maybe.length > 0) && drivers.length === 0)
+    html += `<div class="match-warning">&#x26A0;&#xFE0F; 車を出せる人がいません</div>`;
+  return html;
+}
+
+// ============ Match Overview (all dates) ============
+function renderMatchOverview() {
+  const card = document.getElementById('match-overview-card');
+  const container = document.getElementById('match-overview');
+  if (!currentEvent || members.length === 0) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  let html = '';
+  currentEvent.dates.forEach(ds => {
+    const dayM = members.filter(m => m.responses && m.responses[ds] && (m.responses[ds].going !== 'none' || m.responses[ds].returning !== 'none'));
+    if (dayM.length === 0) return;
+    const status = getDayStatus(ds);
+    const icon = status === 'ok' ? '✅' : '🔺';
+    html += `<div style="border:1px solid #e0e0e0;border-radius:10px;padding:14px;margin-bottom:12px;background:${status==='ok'?'#f0faf0':'#fffaf0'};">`;
+    html += `<div style="font-weight:700;font-size:1.05em;margin-bottom:8px;">${icon} ${shortDate(ds)}（${dayOfWeek(ds)}）</div>`;
+    ['going','returning'].forEach(dir => {
+      const label = dir === 'going' ? '行き' : '帰り';
+      const cls = dir === 'going' ? 'direction-going' : 'direction-returning';
+      html += `<div style="margin-bottom:8px;"><span class="direction-label ${cls}" style="font-size:0.85em;">${dir==='going'?'➡️':'⬅️'} ${label}</span>`;
+      html += renderMatchDir(ds, dir);
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+  if (!html) { card.style.display = 'none'; return; }
+  container.innerHTML = html;
+}
+
+// ============ Summary ============
+function renderSummary() {
+  if (members.length === 0) {
+    document.getElementById('summary-container').innerHTML = '<p style="text-align:center;color:#999;padding:16px;">参加者がいません</p>';
+    return;
+  }
+  let html = '<table class="summary-table"><thead><tr><th>名前</th><th>◯ 車出せます</th><th>△ 可能なら</th><th>✗ 乗せて</th><th>― 不参加</th><th>参加率</th></tr></thead><tbody>';
+  const totalSlots = currentEvent.dates.length * 2; // going + returning
+  members.forEach(m => {
+    let counts = { driver:0, maybe:0, rider:0, none:0 };
+    currentEvent.dates.forEach(ds => {
+      const r = m.responses && m.responses[ds] ? m.responses[ds] : { going:'none', returning:'none' };
+      counts[r.going]++;
+      counts[r.returning]++;
+    });
+    const active = counts.driver + counts.maybe + counts.rider;
+    const rate = totalSlots > 0 ? Math.round(active / totalSlots * 100) : 0;
+    html += `<tr><td>${esc(m.name)}</td><td style="color:#2a6cb8;font-weight:600;">${counts.driver}</td><td style="color:#c87f0a;font-weight:600;">${counts.maybe}</td><td style="color:#d35400;font-weight:600;">${counts.rider}</td><td style="color:#999;">${counts.none}</td><td>${rate}%</td></tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('summary-container').innerHTML = html;
+}
+
+// ============ Share ============
+function copyURL() {
+  navigator.clipboard.writeText(document.getElementById('share-url').value).then(() => {
+    const msg = document.getElementById('copied-msg');
+    msg.style.display = 'block';
+    setTimeout(() => msg.style.display = 'none', 2000);
+  });
+}
+
+// ============ Storage ============
+function saveMembers() { if (currentEvent) localStorage.setItem('carpool_' + currentEvent.id, JSON.stringify(members)); }
+function loadMembers() { if (currentEvent) { const d = localStorage.getItem('carpool_' + currentEvent.id); members = d ? JSON.parse(d) : []; } }
+</script>
+</body>
+</html>
